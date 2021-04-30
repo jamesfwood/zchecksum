@@ -120,6 +120,22 @@ class ChecksumSet:
 
         return False
 
+    # get list of files in sha512 file are missing from directory
+    def get_missing_from_dir(self):
+        missing_list = []
+        if self.sha512File is None:
+            msg = "ERROR: Must have a sha512 file for get_missing_from_dir!"
+            print(msg)
+            raise Exception(msg)
+
+        for n in self.sha512File.file_list:
+            filename = n['filename']
+            if filename not in self.filenames:
+
+                missing_list.append(filename)
+
+        return missing_list
+
     # check if any files in dir and not in sha512 file
     def any_added_to_dir(self, silent=False):
         for f in self.filenames:

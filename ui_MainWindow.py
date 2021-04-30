@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 ################################################################################
-## Form generated from reading UI file 'MainWindowDCzBiZ.ui'
+## Form generated from reading UI file 'MainWindowWeJVYq.ui'
 ##
 ## Created by: Qt User Interface Compiler version 6.0.3
 ##
@@ -26,6 +26,11 @@ class Ui_MainWindow(object):
         self.groupBox.setObjectName(u"groupBox")
         self.horizontalLayout = QHBoxLayout(self.groupBox)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.checkBox_4 = QCheckBox(self.groupBox)
+        self.checkBox_4.setObjectName(u"checkBox_4")
+
+        self.horizontalLayout.addWidget(self.checkBox_4)
+
         self.checkBox_6 = QCheckBox(self.groupBox)
         self.checkBox_6.setObjectName(u"checkBox_6")
 
@@ -104,8 +109,9 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(QCoreApplication.translate("MainWindow", u"MainWindow", None))
         self.groupBox.setTitle(QCoreApplication.translate("MainWindow", u"GroupBox", None))
-        self.checkBox_6.setText(QCoreApplication.translate("MainWindow", u"Show New", None))
-        self.checkBox_5.setText(QCoreApplication.translate("MainWindow", u"Show Error", None))
+        self.checkBox_4.setText(QCoreApplication.translate("MainWindow", u"Show New", None))
+        self.checkBox_6.setText(QCoreApplication.translate("MainWindow", u"Show Warnings", None))
+        self.checkBox_5.setText(QCoreApplication.translate("MainWindow", u"Show Errors", None))
         self.checkBox.setText(QCoreApplication.translate("MainWindow", u"Show Modified", None))
         self.checkBox_3.setText(QCoreApplication.translate("MainWindow", u"Show Test", None))
         self.checkBox_2.setText(QCoreApplication.translate("MainWindow", u"Show Good", None))

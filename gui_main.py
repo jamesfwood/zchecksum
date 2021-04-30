@@ -16,7 +16,13 @@ from ChecksumSet import ChecksumSet
 
 from Sha512 import Sha512
 
-#TODO:  Update UI file to say "Untracked/New Sets"
+#TODO:  Add warning if filename is Thumbs.db
+#TODO:  Add warning when file path > 255
+#TODO:  Add warning when file size = 0
+#TODO:  Add error if subdir filename is "zchecksum"
+#TODO:  Rename zchecksum.sh2 to .sha512
+
+good_days = 6
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -26,7 +32,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.p : QProcess = None
         
-        dirname = r"K:\Media Library\TV"
+        dirname = r"J:\Media Library"
 
         processing_dirs = getBaseDirs(dirname)
 
@@ -39,6 +45,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.running_icon = style.standardIcon(QStyle.SP_BrowserReload)
         self.done_icon = style.standardIcon(QStyle.SP_DialogApplyButton)
         self.failed_icon = style.standardIcon(QStyle.SP_MessageBoxCritical)
+        self.missing_icon = style.standardIcon(QStyle.SP_DialogCancelButton)
+        self.added_icon = style.standardIcon(QStyle.SP_TitleBarContextHelpButton)
 
         self.checksum_sets = []
 
@@ -116,10 +124,27 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         yield child
 
 
+    def format_size(self, size):
+        if size < 0:
+            raise Exception('Unknown file size')
+
+        if size < 1024:
+            return f'{size} Bytes'
+        elif size < 1024 * 1024:
+            size_kb = size / 1024
+            return f'{size_kb:.1f} KB'
+        elif size < 1024 * 1024 * 1024:
+            size_mb = size / 1024 / 1024
+            return f'{size_mb:.1f} MB'
+        else:
+            size_gb = size / 1024 / 1024 / 1024
+            return f'{size_gb:.1f} GB'
+
+
     def populateModel(self):
 
         self.model = QStandardItemModel()
-        self.model.setHorizontalHeaderLabels(['Status', 'Directory / Filename', 'File Count', 'Size (MB)', 'Checksum', 'Last Verified'])
+        self.model.setHorizontalHeaderLabels(['Status', 'Directory / Filename', 'File Count', 'Size', 'Checksum', 'Last Verified'])
         rootItem = self.model.invisibleRootItem()
 
         for checksum_set in self.checksum_sets:
@@ -129,28 +154,42 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 status = 'New'
             elif checksum_set.has_changes():
                 status = "Modified"
-                self.toast_notification("Modified Set", checksum_set.baseDirname)
+                self.toast_notification("Checksum set was modified.", checksum_set.baseDirname)
             else:
                 time_delta = datetime.now() - checksum_set.sha512File.last_verified
                 last_verified = f'{time_delta.days} days ago'
-                if time_delta.days > 30:
+                if time_delta.days > good_days:
                     status = 'Test'
                 else:
                     status = 'Good'
 
-            if status is 'Test' or status is 'New':
+            if status == 'Test' or status == 'New' or status == 'Modified':
                 item = [QStandardItem(status), QStandardItem(checksum_set.baseDirname), QStandardItem(str(len(checksum_set.filenames))), QStandardItem(''), QStandardItem(''), QStandardItem(last_verified)]
                 for filename in checksum_set.filenames:
                     checksum_text = ''
+                    file_status = ''
                     if checksum_set.sha512File:
                         checksum = checksum_set.sha512File.findChecksum(filename)
                         if checksum:
                             checksum_text = checksum
+                        else:
+                            file_status = 'Added'
                     size = Path(checksum_set.baseDirname + filename).stat().st_size
-                    size_mb = size / 1024 / 1024
-                    c_item = [QStandardItem(''), QStandardItem(filename), QStandardItem(''), QStandardItem(f'{size_mb:.1f} MB'), QStandardItem(checksum_text)]
+                    size_display = self.format_size(size)
+               #     sz = len(checksum_set.baseDirname) + len(filename)
+                    c_item = [QStandardItem(file_status), QStandardItem(filename), QStandardItem(''), QStandardItem(size_display), QStandardItem(checksum_text)]
                     c_item[1].setData(checksum_set, QtCore.Qt.UserRole)
+                    if file_status == 'Added':
+                        c_item[0].setIcon(self.added_icon)
+
                     item[0].appendRow(c_item)
+                if checksum_set.hasSha512File():
+                    for filename in checksum_set.get_missing_from_dir():
+                        checksum_text = checksum_set.sha512File.findChecksum(filename)
+                        c_item = [QStandardItem('Missing'), QStandardItem(filename), QStandardItem(''), QStandardItem('n/a'), QStandardItem(checksum_text)]
+                        c_item[1].setData(checksum_set, QtCore.Qt.UserRole)
+                        c_item[0].setIcon(self.missing_icon)
+                        item[0].appendRow(c_item)
                 rootItem.appendRow(item)
 
 
@@ -179,7 +218,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 modified_count += 1
             else:
                 time_delta = datetime.now() - checksum_set.sha512File.last_verified
-                if time_delta.days > 30:
+                if time_delta.days > good_days:
                     test_count += 1
                 else:
                     good_count += 1
@@ -252,7 +291,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def run_process(self, dir, filename, set_item, childIndex):
         if self.p is None:  # No process running.
-            self.p_item = dict(set_item=set_item, child_index=childIndex )
+            self.p_item = dict(set_item=set_item, child_index=childIndex)
             self.p = QProcess()  # Keep a reference to the QProcess (e.g. on self) while it's running.
      
         #    item
@@ -266,8 +305,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             filepath = dir + filename
             self.message("Executing process for file: " + filepath)
 
-            args = ["-hashfile", filepath, "SHA512"]
-            self.p.start("certutil", args)
+            if Path(filepath).stat().st_size > 0:
+                args = ["-hashfile", filepath, "SHA512"]
+                self.p.start("certutil", args)
+            else:
+                # CertUtil cannot compute hashes on empty files
+                args = ["zero_sha512.py"]
+                self.p.start("python", args)
 
             status = set_item.child(childIndex, 0)
 
@@ -325,7 +369,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             checksum_set = filename_item.data(QtCore.Qt.UserRole)
 
             if checksum_set is None:
-                self.toast_notification("Checksum Set Not Found", "No checksum set for file " + filename_item.text())
+                self.toast_notification("Checksum set not found.", "No checksum set for file " + filename_item.text())
                 raise Exception("No checksum set found")
 
             self.message(f'Process finished. exitCode = {exitCode}, exitStatus = {exitStatus}, baseDirname = {checksum_set.baseDirname}')
@@ -348,10 +392,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             lines = stdout.splitlines()
 
             if exitCode != 0 or len(lines) != 3:
-                msg = f'Error: Compute SHA512 failed.  stdout: ({stdout})'
+                msg = f'Compute SHA512 failed.  stdout: ({stdout})'
+                error_message = ''
+                if len(lines) > 1 and lines[1].startswith("CertUtil: "):
+                    error_message = lines[1][10:]
+                    
              #   msg = f'Error: Compute SHA512 failed for file {filename}.  stdout: ({cp.stdout}) stderr: ({cp.stderr})'
         #       print(msg)
-                self.toast_notification('Failed Compute Checksum', filename_item.text())
+                self.toast_notification('Failed to compute checksum. ' + error_message, filename_item.text())
                 raise Exception(msg)
 
             new_checksum = lines[1].replace(" ", "")
@@ -363,8 +411,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if old_checksum == "":
                 checksum_item.setText(new_checksum)
             elif new_checksum != old_checksum:
-                    msg = f'Error: Checksums do not match.'
-                    self.toast_notification('Failed Checksum Test', filename_item.text())
+                    msg = f'Checksums do not match.'
+                    self.toast_notification('Checksums mismatch', filename_item.text())
                     raise Exception(msg)
 
             if status_item.text() == "Running Pass 3/3" or status_item.text() == 'Running':
@@ -394,7 +442,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             status_item.setIcon(self.failed_icon)
             row_item.setText("Failed")
             row_item.setIcon(self.failed_icon)
-            self.message("ERROR: " + str(e))
+            self.message("Error: " + str(e))
         finally:
             self.p = None   
             self.start_process()
