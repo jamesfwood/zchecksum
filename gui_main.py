@@ -20,9 +20,8 @@ from Sha512 import Sha512
 #TODO:  Add warning when file path > 255
 #TODO:  Add warning when file size = 0
 #TODO:  Add error if subdir filename is "zchecksum"
-#TODO:  Rename zchecksum.sh2 to .sha512
 
-good_days = 6
+good_days = 5
 
 class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
@@ -32,7 +31,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.p : QProcess = None
         
-        dirname = r"J:\Media Library"
+        dirname = r"K:\Media Library"
 
         processing_dirs = getBaseDirs(dirname)
 
@@ -45,8 +44,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.running_icon = style.standardIcon(QStyle.SP_BrowserReload)
         self.done_icon = style.standardIcon(QStyle.SP_DialogApplyButton)
         self.failed_icon = style.standardIcon(QStyle.SP_MessageBoxCritical)
-        self.missing_icon = style.standardIcon(QStyle.SP_DialogCancelButton)
-        self.added_icon = style.standardIcon(QStyle.SP_TitleBarContextHelpButton)
+        self.missing_icon = style.standardIcon(QStyle.SP_TitleBarContextHelpButton)
+        self.added_icon = style.standardIcon(QStyle.SP_ArrowUp)
+        self.warning_icon = style.standardIcon(QStyle.SP_MessageBoxWarning)
 
         self.checksum_sets = []
 
@@ -181,7 +181,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     c_item[1].setData(checksum_set, QtCore.Qt.UserRole)
                     if file_status == 'Added':
                         c_item[0].setIcon(self.added_icon)
-
+                    if filename == 'Thumbs.db':
+                        c_item[0].setIcon(self.warning_icon)
                     item[0].appendRow(c_item)
                 if checksum_set.hasSha512File():
                     for filename in checksum_set.get_missing_from_dir():
@@ -192,6 +193,27 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         item[0].appendRow(c_item)
                 rootItem.appendRow(item)
 
+    #    self.showIssues()
+
+
+    #TODO: FIX, NOT WORKING!
+    def showIssues(self):
+        self.treeView.expandAll()
+        root = self.model.invisibleRootItem()
+        if root is not None:
+            for row in range(root.rowCount()):
+                row_item = root.child(row, 0)
+                if row_item.hasChildren():
+                    for childIndex in range(row_item.rowCount()):
+                        # Take second column from "child"-row
+                        child = row_item.child(childIndex, 1)
+
+                        filename = child.text()
+                        print(f'f = {filename}, {row_item.index()}')
+                        if filename == 'Thumbs.db':
+                            self.treeView.setExpanded(row_item.index(), True)
+                         #   c_item[0].setIcon(self.warning_icon)
+                         #   item[0].setExpanded(True)
 
 
 

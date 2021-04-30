@@ -26,7 +26,7 @@ class ChecksumSet:
                 # All filenames are relative to baseDirname
                 filename = os.path.join(r, filename).replace(self.baseDirname, "")
 
-                if os.path.basename(filename) == "zchecksum.sh2":
+                if os.path.basename(filename) == "zchecksum.sha512":
      #               print(f'Found {filename} file.  Loading...  sha512file = {self.sha512File}')
                     self.loadSha512(filename)
                 else:

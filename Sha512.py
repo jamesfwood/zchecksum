@@ -93,14 +93,14 @@ class Sha512:
 
 
     def update_modified(self):
-        os.utime(self.dirname + "zchecksum.sh2", None)
+        os.utime(self.dirname + "zchecksum.sha512", None)
 
 
     def writeFile(self):
         
      #   self.last_verified = datetime.now()
 
-        with open(self.dirname + "zchecksum.sh2", 'w', encoding="utf-8") as sha_file:
+        with open(self.dirname + "zchecksum.sha512", 'w', encoding="utf-8") as sha_file:
             sha_file.writelines(self.header)
 
             for f in self.file_list:
